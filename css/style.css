@@ -237,3 +237,42 @@ body {
   font-weight: 700;
   white-space: nowrap;
 }
+
+/* ================= MOBILE & ANDROID OPTIMIZATIONS ================= */
+html, body {
+  touch-action: manipulation;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: none;
+}
+
+/* Safe Area Insets for Android gesture bar and notched phones */
+@supports (padding: max(0px)) {
+  .mobile-drawer-safe {
+    padding-bottom: max(16px, env(safe-area-inset-bottom, 16px));
+  }
+}
+
+/* Smooth Touch Ripple / Active State for Mobile Buttons */
+button, a {
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+/* Mobile Leaflet Popup Scaling */
+@media (max-width: 640px) {
+  .leaflet-popup-content {
+    width: 260px !important;
+  }
+  .leaflet-container {
+    font-size: 11px !important;
+  }
+}
+
+/* Hide scrollbars on mobile categories while keeping smooth scroll */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

@@ -741,8 +741,12 @@ function displayRouteHud(destination, distanceKm, carMinutes, motorMinutes, walk
   elements.routeHudCard.classList.remove("hidden");
   refreshIcons();
 
-  // Jika di mobile, tutup drawer agar HUD terlihat leluasa
-  closeMobileDrawer();
+  // Jika di mobile, sembunyikan drawer sepenuhnya agar HUD rute leluasa tanpa bertumpuk
+  if (window.innerWidth < 768) {
+    hideMobileDrawerCompletely();
+  } else {
+    closeMobileDrawer();
+  }
 }
 
 function clearActiveRoute(notify = true) {
@@ -757,6 +761,11 @@ function clearActiveRoute(notify = true) {
 
   activeDestination = null;
   elements.routeHudCard.classList.add("hidden");
+
+  // Jika di mobile, kembalikan drawer ke posisi intip (peek)
+  if (window.innerWidth < 768) {
+    closeMobileDrawer();
+  }
 
   if (notify) {
     showToast("Jalur rute telah dihapus.", "info");
@@ -1381,26 +1390,36 @@ function setupAdminAuthEvents() {
 // ================= MOBILE DRAWER HELPERS =================
 let isMobileDrawerOpen = false;
 
-function toggleMobileDrawer() {
-  isMobileDrawerOpen = !isMobileDrawerOpen;
-  if (isMobileDrawerOpen) {
-    elements.mobileDrawer.classList.remove("translate-y-[calc(100%-85px)]");
-    elements.mobileDrawer.classList.add("translate-y-0");
-    elements.btnToggleDrawerIcon.innerHTML = `<i data-lucide="chevron-down" class="w-4 h-4"></i>`;
-  } else {
-    elements.mobileDrawer.classList.remove("translate-y-0");
-    elements.mobileDrawer.classList.add("translate-y-[calc(100%-85px)]");
-    elements.btnToggleDrawerIcon.innerHTML = `<i data-lucide="chevron-up" class="w-4 h-4"></i>`;
-  }
+function openMobileDrawer() {
+  isMobileDrawerOpen = true;
+  elements.mobileDrawer.classList.remove("translate-y-[calc(100%-85px)]", "translate-y-full");
+  elements.mobileDrawer.classList.add("translate-y-0");
+  elements.btnToggleDrawerIcon.innerHTML = `<i data-lucide="chevron-down" class="w-4 h-4"></i>`;
   refreshIcons();
 }
 
 function closeMobileDrawer() {
   isMobileDrawerOpen = false;
-  elements.mobileDrawer.classList.remove("translate-y-0");
+  elements.mobileDrawer.classList.remove("translate-y-0", "translate-y-full");
   elements.mobileDrawer.classList.add("translate-y-[calc(100%-85px)]");
   elements.btnToggleDrawerIcon.innerHTML = `<i data-lucide="chevron-up" class="w-4 h-4"></i>`;
   refreshIcons();
+}
+
+function hideMobileDrawerCompletely() {
+  isMobileDrawerOpen = false;
+  elements.mobileDrawer.classList.remove("translate-y-0", "translate-y-[calc(100%-85px)]");
+  elements.mobileDrawer.classList.add("translate-y-full");
+  elements.btnToggleDrawerIcon.innerHTML = `<i data-lucide="chevron-up" class="w-4 h-4"></i>`;
+  refreshIcons();
+}
+
+function toggleMobileDrawer() {
+  if (isMobileDrawerOpen) {
+    closeMobileDrawer();
+  } else {
+    openMobileDrawer();
+  }
 }
 
 // ================= TOAST NOTIFICATIONS =================
@@ -1482,9 +1501,49 @@ function setupEventListeners() {
     elements.btnOpenSidebar.classList.add("hidden");
   });
 
-  // Mobile Drawer Toggle
-  elements.btnToggleMobileDrawer.addEventListener("click", toggleMobileDrawer);
-  elements.mobileDrawerHeader.addEventListener("click", toggleMobileDrawer);
+  // Mobile Drawer Toggle Button
+  if (elements.btnToggleMobileDrawer) {
+    elements.btnToggleMobileDrawer.addEventListener("click", toggleMobileDrawer);
+  }
+
+  // Mobile Drawer Touch Swipe Gesture (Swipe Up / Down di handle drawer Android)
+  let touchStartY = 0;
+  let isSwiping = false;
+
+  if (elements.mobileDrawerHeader) {
+    elements.mobileDrawerHeader.addEventListener("touchstart", (e) => {
+      touchStartY = e.changedTouches[0].clientY;
+      isSwiping = false;
+    }, { passive: true });
+
+    elements.mobileDrawerHeader.addEventListener("touchmove", (e) => {
+      const currentY = e.changedTouches[0].clientY;
+      if (Math.abs(touchStartY - currentY) > 8) {
+        isSwiping = true;
+      }
+    }, { passive: true });
+
+    elements.mobileDrawerHeader.addEventListener("touchend", (e) => {
+      const touchEndY = e.changedTouches[0].clientY;
+      const diffY = touchStartY - touchEndY;
+      // Swipe ke atas > 25px -> Buka Drawer
+      if (diffY > 25) {
+        openMobileDrawer();
+      }
+      // Swipe ke bawah > 25px -> Tutup Drawer
+      else if (diffY < -25) {
+        closeMobileDrawer();
+      }
+    }, { passive: true });
+
+    // Handle klik/tap jika tidak sedang melakukan swipe gesture
+    elements.mobileDrawerHeader.addEventListener("click", (e) => {
+      if (e.target.closest("button")) return; // Jangan toggle jika klik tombol admin/tambah di header drawer
+      if (!isSwiping) {
+        toggleMobileDrawer();
+      }
+    });
+  }
 
   // Refresh Geolocation
   elements.btnRefreshLocation.addEventListener("click", () => {
