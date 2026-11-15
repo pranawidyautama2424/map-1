@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JelajahNTT - Peta Wisata & Rute Terbaik Nusa Tenggara Timur</title>
+
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              800: '#1e40af',
+              900: '#1e3a8a',
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+  <!-- Leaflet Routing Machine CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="css/style.css" />
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <!-- Leaflet Routing Machine JS -->
+  <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Supabase JS CDN (BaaS Backend & Database) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body class="bg-slate-100 text-slate-800 antialiased h-screen w-screen overflow-hidden relative select-none">
+
+  <!-- ================= MAP CONTAINER ================= -->
+  <div id="map" class="w-full h-full absolute inset-0 z-0"></div>
+
+  <!-- ================= TOP FLOATING BRAND & SEARCH HEADER (MOBILE / DESKTOP HEADER) ================= -->
+  <header
+    class="absolute top-4 left-4 right-4 md:left-auto md:right-4 z-[990] flex items-center justify-between pointer-events-none">
+    <!-- Quick Status Badge on Desktop -->
+    <div
+      class="hidden lg:flex items-center gap-2 bg-white/90 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-lg border border-white/60 pointer-events-auto">
+      <span class="relative flex h-3 w-3">
+        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+        <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+      </span>
+      <span class="text-xs font-semibold text-slate-700">OSRM Live Routing Engine Aktif</span>
+      <span class="text-xs text-slate-400">|</span>
+      <span id="spotCounterBadge" class="text-xs font-bold text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full">5
+        Destinasi</span>
+    </div>
+
+    <!-- Floating Top-Right Tool Buttons -->
+    <div class="flex items-center gap-2 pointer-events-auto ml-auto">
+      <!-- Button: Status / Login Admin -->
+      <button id="btnAdminAuth" title="Login / Pengaturan Admin Pengelola"
+        class="flex items-center gap-1.5 bg-white/95 hover:bg-white text-slate-700 hover:text-brand-600 px-3 py-2.5 rounded-2xl shadow-lg border border-slate-200/80 transition-all active:scale-95 group">
+        <i id="adminAuthIcon" data-lucide="lock" class="w-4 h-4 text-slate-500 group-hover:text-brand-600 transition-colors"></i>
+        <span id="adminAuthText" class="text-xs font-bold text-slate-700 hidden sm:inline">Admin</span>
+      </button>
+
+      <!-- Button: Admin Tambah Wisata Baru -->
+      <button id="btnOpenAddLocationModal" title="Admin: Tambah Titik Lokasi Wisata Baru"
+        class="flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white px-3.5 py-2.5 rounded-2xl shadow-lg shadow-emerald-600/25 border border-emerald-400/40 transition-all active:scale-95 group">
+        <i data-lucide="plus-circle" class="w-4 h-4 group-hover:rotate-90 transition-transform"></i>
+        <span class="text-xs font-bold hidden sm:inline">Tambah Wisata</span>
+      </button>
+
+      <!-- Button: Lokasi Saya -->
+      <button id="btnMyLocation" title="Deteksi & Fokus Lokasi Saya"
+        class="flex items-center gap-2 bg-white/95 hover:bg-white text-slate-700 hover:text-brand-600 px-3.5 py-2.5 rounded-2xl shadow-lg border border-slate-200/80 transition-all active:scale-95 group">
+        <i data-lucide="crosshair" class="w-4 h-4 text-brand-600 group-hover:rotate-45 transition-transform"></i>
+        <span class="text-xs font-semibold hidden sm:inline">Lokasi Saya</span>
+      </button>
+
+      <!-- Button: Tampilkan Semua Wisata (FitBounds) -->
+      <button id="btnFitAllSpots" title="Kembalikan Fokus ke Seluruh Titik Wisata"
+        class="flex items-center gap-2 bg-white/95 hover:bg-white text-slate-700 hover:text-brand-600 px-3.5 py-2.5 rounded-2xl shadow-lg border border-slate-200/80 transition-all active:scale-95 group">
+        <i data-lucide="maximize" class="w-4 h-4 text-emerald-600 group-hover:scale-110 transition-transform"></i>
+        <span class="text-xs font-semibold hidden sm:inline">Semua Wisata</span>
+      </button>
+
+      <!-- Button: Ganti Map Tile (Style) -->
+      <button id="btnToggleTile" title="Ganti Gaya Peta (Voyager / Satelit / Standar)"
+        class="p-2.5 bg-white/95 hover:bg-white text-slate-700 hover:text-brand-600 rounded-2xl shadow-lg border border-slate-200/80 transition-all active:scale-95">
+        <i data-lucide="layers" class="w-4 h-4 text-slate-600"></i>
+      </button>
+
+      <!-- Mobile Toggle Drawer Button -->
+      <button id="btnToggleMobileDrawer"
+        class="md:hidden flex items-center gap-1.5 bg-brand-600 text-white px-3.5 py-2.5 rounded-2xl shadow-lg font-semibold text-xs active:scale-95">
+        <i data-lucide="list" class="w-4 h-4"></i>
+        <span>Daftar</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ================= FLOATING DESKTOP SIDEBAR ================= -->
+  <aside id="desktopSidebar"
+    class="hidden md:flex flex-col absolute top-4 left-4 bottom-4 w-96 max-w-[calc(100vw-32px)] glass-panel rounded-3xl z-[995] overflow-hidden transition-all duration-300 ease-in-out shadow-2xl">
+
+    <!-- Sidebar Header -->
+    <div class="p-5 pb-3 border-b border-slate-200/60 bg-gradient-to-b from-white/60 to-transparent">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2.5">
+          <div
+            class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-brand-600 to-cyan-500 flex items-center justify-center text-white shadow-md shadow-brand-500/25">
+            <i data-lucide="compass" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h1 class="font-extrabold text-base tracking-tight text-slate-900 leading-none">JelajahNTT</h1>
+            <p class="text-[11px] text-slate-500 font-medium mt-1">Eksplorasi Flores & Daratan Timor, NTT</p>
+          </div>
+        </div>
+
+        <!-- Collapse Sidebar Button -->
+        <button id="btnCollapseSidebar" title="Sembunyikan Panel"
+          class="w-8 h-8 rounded-xl hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-700 transition-colors">
+          <i data-lucide="chevron-left" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Region Selector Tabs (Semua / Flores / Timor) -->
+      <div class="mb-2 p-1 bg-slate-100 rounded-2xl flex items-center gap-1 text-[11px] font-bold border border-slate-200/60">
+        <button onclick="window.handleRegionSelect('Semua')" id="regionBtn-Semua" class="region-tab flex-1 py-1.5 px-1 rounded-xl text-center transition-all bg-brand-600 text-white shadow-xs">
+          Semua NTT (<span id="countSemua">10</span>)
+        </button>
+        <button onclick="window.handleRegionSelect('Flores')" id="regionBtn-Flores" class="region-tab flex-1 py-1.5 px-1 rounded-xl text-center transition-all text-slate-600 hover:text-slate-900">
+          Flores (<span id="countFlores">5</span>)
+        </button>
+        <button onclick="window.handleRegionSelect('Timor')" id="regionBtn-Timor" class="region-tab flex-1 py-1.5 px-1 rounded-xl text-center transition-all text-slate-600 hover:text-slate-900">
+          Timor (<span id="countTimor">5</span>)
+        </button>
+      </div>
+
+      <!-- Real-time Search Input -->
+      <div class="relative mt-2">
+        <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+        <input type="text" id="searchInput" placeholder="Cari wisata, pantai, gua, air terjun..."
+          class="w-full pl-9 pr-9 py-2.5 bg-slate-100/90 hover:bg-slate-100 focus:bg-white text-xs font-medium rounded-xl border border-transparent focus:border-brand-500 outline-none transition-all placeholder:text-slate-400" />
+        <button id="btnClearSearch"
+          class="hidden absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
+
+      <!-- Category Filter Pills -->
+      <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-3 mt-1" id="categoryFilterContainer">
+        <!-- Injected via JavaScript -->
+      </div>
+    </div>
+
+    <!-- Tourism Spots List (Scrollable) -->
+    <div class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3" id="tourismCardsContainer">
+      <!-- Tourism Cards will be rendered dynamically -->
+    </div>
+
+    <!-- Sidebar Footer / Device Location Indicator -->
+    <div class="p-3.5 bg-white/70 border-t border-slate-200/60 flex items-center justify-between text-[11px]">
+      <div class="flex items-center gap-2 text-slate-600 truncate max-w-[240px]">
+        <span class="w-2 h-2 rounded-full bg-brand-600 animate-pulse flex-shrink-0"></span>
+        <span class="truncate font-medium" id="userLocationLabel">Mendeteksi lokasi Anda...</span>
+      </div>
+      <button id="btnRefreshLocation" title="Perbarui Lokasi GPS"
+        class="text-brand-600 hover:text-brand-700 font-semibold p-1 hover:bg-brand-50 rounded-lg">
+        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Button to Re-Open Desktop Sidebar when Collapsed -->
+  <button id="btnOpenSidebar"
+    class="hidden absolute top-5 left-5 z-[990] bg-white text-slate-700 hover:text-brand-600 p-3 rounded-2xl shadow-xl border border-slate-200/80 items-center justify-center transition-all hover:scale-105 active:scale-95">
+    <i data-lucide="menu" class="w-5 h-5"></i>
+  </button>
+
+  <!-- ================= MOBILE BOTTOM DRAWER ================= -->
+  <div id="mobileDrawer"
+    class="md:hidden fixed inset-x-0 bottom-0 z-[995] glass-panel rounded-t-3xl max-h-[82vh] flex flex-col translate-y-[calc(100%-85px)] transition-transform duration-300 ease-out shadow-2xl">
+    <!-- Drag Handle & Quick Header -->
+    <div id="mobileDrawerHeader" class="p-3 pb-2 cursor-pointer border-b border-slate-200/60">
+      <div class="w-12 h-1.5 bg-slate-300 rounded-full mx-auto mb-2.5"></div>
+      <div class="flex items-center justify-between px-2">
+        <div class="flex items-center gap-2">
+          <i data-lucide="map-pin" class="w-4 h-4 text-brand-600"></i>
+          <span class="text-xs font-bold text-slate-800">Daftar Destinasi</span>
+          <span id="mobileCountBadge"
+            class="text-[10px] bg-brand-50 text-brand-600 font-bold px-2 py-0.5 rounded-full">10</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <button id="btnAdminAuthMobile" type="button" class="p-1.5 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-100" title="Admin">
+            <i id="adminAuthIconMobile" data-lucide="lock" class="w-3.5 h-3.5"></i>
+          </button>
+          <button id="btnOpenAddModalMobile" type="button" class="flex items-center gap-1 px-2.5 py-1 bg-emerald-600 text-white rounded-lg text-[10px] font-bold shadow-xs active:scale-95">
+            <i data-lucide="plus" class="w-3 h-3"></i>
+            <span>Tambah</span>
+          </button>
+          <button id="btnToggleDrawerIcon" class="text-slate-400 p-1">
+            <i data-lucide="chevron-up" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile Search & Filter -->
+    <div class="p-3 border-b border-slate-200/50 space-y-2">
+      <!-- Mobile Region Selector Tabs -->
+      <div class="p-1 bg-slate-100 rounded-xl flex items-center gap-1 text-[10px] font-bold border border-slate-200/60">
+        <button onclick="window.handleRegionSelect('Semua')" id="mRegionBtn-Semua" class="region-tab-mobile flex-1 py-1 rounded-lg text-center transition-all bg-brand-600 text-white shadow-xs">
+          Semua (<span id="mCountSemua">10</span>)
+        </button>
+        <button onclick="window.handleRegionSelect('Flores')" id="mRegionBtn-Flores" class="region-tab-mobile flex-1 py-1 rounded-lg text-center transition-all text-slate-600">
+          Flores (<span id="mCountFlores">5</span>)
+        </button>
+        <button onclick="window.handleRegionSelect('Timor')" id="mRegionBtn-Timor" class="region-tab-mobile flex-1 py-1 rounded-lg text-center transition-all text-slate-600">
+          Timor (<span id="mCountTimor">5</span>)
+        </button>
+      </div>
+
+      <div class="relative">
+        <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+        <input type="text" id="mobileSearchInput" placeholder="Cari nama atau kategori wisata..."
+          class="w-full pl-8 pr-8 py-2 bg-slate-100 text-xs rounded-xl outline-none focus:ring-1 focus:ring-brand-500" />
+      </div>
+      <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1" id="mobileCategoryFilterContainer">
+        <!-- Injected via JS -->
+      </div>
+    </div>
+
+    <!-- Mobile List Container -->
+    <div class="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2.5" id="mobileCardsContainer">
+      <!-- Injected via JS -->
+    </div>
+  </div>
+
+  <!-- ================= FLOATING ROUTE INFO HUD (Tampil saat Rute Aktif) ================= -->
+  <div id="routeHudCard"
+    class="hidden absolute bottom-6 inset-x-4 md:inset-x-auto md:left-1/2 md:-translate-x-1/2 z-[1000] max-w-lg w-full bg-slate-900/90 text-white backdrop-blur-xl border border-slate-700/80 rounded-3xl p-4 shadow-2xl transition-all duration-300">
+    <div class="flex items-start justify-between gap-3 mb-3">
+      <div class="flex items-center gap-2.5">
+        <div
+          class="w-9 h-9 rounded-2xl bg-brand-500/20 text-brand-400 flex items-center justify-center border border-brand-500/30">
+          <i data-lucide="navigation" class="w-5 h-5 animate-pulse"></i>
+        </div>
+        <div>
+          <span class="text-[10px] font-bold tracking-wider uppercase text-brand-400">Rute Jalan Tercepat (OSRM)</span>
+          <h4 id="routeDestTitle" class="text-sm font-bold truncate max-w-[220px] sm:max-w-xs text-white">Menuju
+            Destinasi</h4>
+        </div>
+      </div>
+
+      <!-- Button Hapus / Tutup Rute -->
+      <button id="btnCloseRouteHud" title="Hapus Rute"
+        class="w-8 h-8 rounded-full bg-slate-800 hover:bg-rose-500/20 hover:text-rose-400 text-slate-400 flex items-center justify-center transition-colors">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+
+    <!-- Pilihan Moda Transportasi (Mobil, Motor, Jalan Kaki) -->
+    <div class="mb-3">
+      <div
+        class="text-[10px] text-slate-400 uppercase tracking-wider font-bold mb-1.5 flex items-center justify-between">
+        <span>Pilih Moda Transportasi:</span>
+        <span id="activeModeLabel" class="text-brand-400 font-extrabold">🚗 Mobil</span>
+      </div>
+      <div class="grid grid-cols-3 gap-2 bg-slate-800/80 p-1.5 rounded-2xl border border-slate-700/60">
+        <!-- Mobil -->
+        <button id="modeBtnCar" onclick="window.selectTransportMode('car')"
+          class="mode-select-btn flex flex-col items-center justify-center py-2 px-1 rounded-xl bg-brand-600 text-white shadow-md transition-all active:scale-95 group">
+          <div class="flex items-center gap-1.5 text-xs font-bold">
+            <i data-lucide="car" class="w-4 h-4"></i>
+            <span>Mobil</span>
+          </div>
+          <span id="etaValCar" class="text-[11px] font-extrabold mt-0.5 opacity-90">--</span>
+        </button>
+
+        <!-- Motor -->
+        <button id="modeBtnMotor" onclick="window.selectTransportMode('motor')"
+          class="mode-select-btn flex flex-col items-center justify-center py-2 px-1 rounded-xl bg-slate-800/60 hover:bg-slate-700/60 text-slate-300 hover:text-white transition-all active:scale-95 group">
+          <div class="flex items-center gap-1.5 text-xs font-bold">
+            <i data-lucide="bike" class="w-4 h-4 text-emerald-400"></i>
+            <span>Motor</span>
+          </div>
+          <span id="etaValMotor" class="text-[11px] font-extrabold mt-0.5 text-emerald-400">--</span>
+        </button>
+
+        <!-- Jalan Kaki -->
+        <button id="modeBtnWalk" onclick="window.selectTransportMode('walk')"
+          class="mode-select-btn flex flex-col items-center justify-center py-2 px-1 rounded-xl bg-slate-800/60 hover:bg-slate-700/60 text-slate-300 hover:text-white transition-all active:scale-95 group">
+          <div class="flex items-center gap-1.5 text-xs font-bold">
+            <i data-lucide="footprints" class="w-4 h-4 text-amber-400"></i>
+            <span>Jalan Kaki</span>
+          </div>
+          <span id="etaValWalk" class="text-[11px] font-extrabold mt-0.5 text-amber-400">--</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Metrics Grid -->
+    <div class="grid grid-cols-2 gap-2.5 bg-slate-800/60 rounded-2xl p-3 border border-slate-700/40 mb-3">
+      <div class="flex items-center gap-2.5">
+        <div class="p-2 bg-blue-500/20 rounded-xl text-blue-400">
+          <i data-lucide="milestone" class="w-4 h-4"></i>
+        </div>
+        <div>
+          <p class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Total Jarak</p>
+          <p id="routeDistanceVal" class="text-sm font-extrabold text-white">0 km</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2.5">
+        <div class="p-2 bg-emerald-500/20 rounded-xl text-emerald-400">
+          <i data-lucide="clock" class="w-4 h-4"></i>
+        </div>
+        <div>
+          <p class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Estimasi Terpilih</p>
+          <p id="routeDurationVal" class="text-sm font-extrabold text-emerald-400">0 menit</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live Trip Conditions (Cuaca, Kondisi Jalan, Kepadatan Lalu Lintas) -->
+    <div class="bg-slate-800/80 rounded-2xl p-2.5 border border-slate-700/60 mb-3 space-y-2 text-[11px]">
+      <div class="flex items-center justify-between pb-1.5 border-b border-slate-700/50">
+        <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1">
+          <i data-lucide="info" class="w-3 h-3 text-cyan-400"></i>
+          <span>Kondisi Rute & Destinasi</span>
+        </span>
+        <span id="routeWeatherBadge" class="px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-300 font-bold text-[10px] flex items-center gap-1">
+          <i data-lucide="sun" class="w-3 h-3 text-amber-400"></i>
+          <span id="routeWeatherText">31°C Cerah Berawan</span>
+        </span>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 text-[11px]">
+        <div class="flex items-start gap-1.5 text-slate-300 min-w-0">
+          <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-400 flex-shrink-0 mt-0.5"></i>
+          <div class="min-w-0">
+            <span class="text-[10px] text-slate-400 block font-semibold">Kondisi Jalan:</span>
+            <span id="routeRoadText" class="text-white font-bold truncate block">Mulus Beraspal</span>
+          </div>
+        </div>
+        <div class="flex items-start gap-1.5 text-slate-300 min-w-0">
+          <i data-lucide="gauge" class="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5"></i>
+          <div class="min-w-0">
+            <span class="text-[10px] text-slate-400 block font-semibold">Lalu Lintas:</span>
+            <span id="routeTrafficText" class="text-emerald-400 font-bold truncate block">Lancar (40-50 km/j)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="flex items-center gap-2">
+      <button id="btnFocusRoute"
+        class="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold transition-colors">
+        <i data-lucide="scan" class="w-3.5 h-3.5"></i>
+        <span>Fokus Jalur</span>
+      </button>
+
+      <a id="btnExternalGoogleMaps" target="_blank" rel="noopener noreferrer"
+        class="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 bg-gradient-to-r from-brand-600 to-cyan-500 hover:from-brand-500 hover:to-cyan-400 text-white rounded-xl text-xs font-semibold shadow-lg shadow-brand-600/30 transition-all">
+        <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+        <span>Buka Google Maps</span>
+      </a>
+
+      <button id="btnResetRoute"
+        class="py-2.5 px-3 bg-rose-500/20 hover:bg-rose-500 text-rose-300 hover:text-white rounded-xl text-xs font-semibold transition-colors"
+        title="Hapus Rute">
+        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- ================= DETAIL MODAL POPUP (FULL DETAIL VIEW) ================= -->
+  <div id="detailModal"
+    class="hidden fixed inset-0 z-[1100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div
+      class="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
+
+      <!-- Modal Hero Image -->
+      <div class="relative h-56 w-full bg-slate-900 overflow-hidden">
+        <img id="modalImg" src="" alt="Foto Wisata" class="w-full h-full object-cover" />
+        <div class="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/20 to-transparent"></div>
+
+        <!-- Category Pill & Close Button -->
+        <div class="absolute top-4 inset-x-4 flex items-center justify-between">
+          <span id="modalCategoryBadge"
+            class="px-3 py-1 bg-white/90 backdrop-blur-md rounded-full text-xs font-bold shadow-md">
+            Alam
+          </span>
+          <button id="btnCloseModal"
+            class="w-8 h-8 rounded-full bg-black/50 text-white hover:bg-black/80 flex items-center justify-center transition-colors">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <!-- Title & Location Overlay -->
+        <div class="absolute bottom-4 left-4 right-4 text-white">
+          <h3 id="modalTitle" class="text-xl font-extrabold leading-tight drop-shadow-sm">Nama Wisata</h3>
+          <p id="modalLocation" class="text-xs text-slate-200 flex items-center gap-1 mt-1 font-medium">
+            <i data-lucide="map-pin" class="w-3.5 h-3.5 text-brand-400"></i>
+            <span>Lokasi Wisata</span>
+          </p>
+        </div>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-5 space-y-4">
+        <!-- Quick Meta Info Badges -->
+        <div class="grid grid-cols-3 gap-2 py-1">
+          <div class="bg-slate-50 p-2.5 rounded-2xl border border-slate-100 text-center">
+            <span class="text-[10px] text-slate-400 font-semibold block">Rating</span>
+            <div class="flex items-center justify-center gap-1 mt-0.5 font-bold text-xs text-amber-500">
+              <i data-lucide="star" class="w-3.5 h-3.5 fill-amber-400"></i>
+              <span id="modalRating" class="text-slate-800">4.8</span>
+            </div>
+          </div>
+
+          <div class="bg-slate-50 p-2.5 rounded-2xl border border-slate-100 text-center">
+            <span class="text-[10px] text-slate-400 font-semibold block">Tiket Masuk</span>
+            <span id="modalPrice" class="text-xs font-bold text-slate-800 mt-0.5 block truncate">Rp 20.000</span>
+          </div>
+
+          <div class="bg-slate-50 p-2.5 rounded-2xl border border-slate-100 text-center">
+            <span class="text-[10px] text-slate-400 font-semibold block">Jam Buka</span>
+            <span id="modalHours" class="text-xs font-bold text-slate-800 mt-0.5 block truncate">06:00 - 18:00</span>
+          </div>
+        </div>
+
+        <!-- Description -->
+        <div>
+          <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider mb-1.5">Tentang Destinasi</h4>
+          <p id="modalDescription" class="text-xs leading-relaxed text-slate-600">
+            Deskripsi lengkap tempat wisata.
+          </p>
+        </div>
+
+        <!-- Estimasi 3 Moda Transportasi dari Titik Pengguna -->
+        <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100">
+          <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1.5">Estimasi Waktu Tempuh
+            dari Lokasi Anda:</span>
+          <div class="grid grid-cols-3 gap-2 text-center text-xs">
+            <div class="bg-white p-2 rounded-xl shadow-xs border border-slate-100">
+              <span class="text-[10px] text-slate-400 font-medium block">🚗 Mobil</span>
+              <span id="modalEtaCar" class="font-extrabold text-slate-800 block mt-0.5">--</span>
+            </div>
+            <div class="bg-white p-2 rounded-xl shadow-xs border border-slate-100">
+              <span class="text-[10px] text-slate-400 font-medium block">🛵 Motor</span>
+              <span id="modalEtaMotor" class="font-extrabold text-emerald-600 block mt-0.5">--</span>
+            </div>
+            <div class="bg-white p-2 rounded-xl shadow-xs border border-slate-100">
+              <span class="text-[10px] text-slate-400 font-medium block">🚶 Jalan Kaki</span>
+              <span id="modalEtaWalk" class="font-extrabold text-amber-600 block mt-0.5">--</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Informasi Cuaca, Kondisi Jalan & Kepadatan Kendaraan -->
+        <div class="space-y-2 pt-1">
+          <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+            <i data-lucide="activity" class="w-3.5 h-3.5 text-brand-600"></i>
+            <span>Informasi Cuaca & Kondisi Perjalanan</span>
+          </h4>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <!-- Cuaca -->
+            <div class="bg-blue-50/80 p-2.5 rounded-2xl border border-blue-100/80">
+              <div class="flex items-center gap-1 text-[11px] font-bold text-blue-700 mb-1">
+                <i data-lucide="cloud-sun" class="w-3.5 h-3.5"></i>
+                <span>Cuaca Terkini</span>
+              </div>
+              <p id="modalWeatherTemp" class="text-base font-extrabold text-slate-800">31°C</p>
+              <p id="modalWeatherCond" class="text-[11px] font-semibold text-blue-900 truncate">Cerah Berawan</p>
+              <p id="modalWeatherDetails" class="text-[10px] text-slate-500 mt-0.5">Kelembaban: 62% | Angin: 14 km/j</p>
+            </div>
+
+            <!-- Kondisi Jalan -->
+            <div class="bg-emerald-50/80 p-2.5 rounded-2xl border border-emerald-100/80">
+              <div class="flex items-center gap-1 text-[11px] font-bold text-emerald-700 mb-1">
+                <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+                <span>Kondisi Jalan</span>
+              </div>
+              <p id="modalRoadStatus" class="text-xs font-extrabold text-slate-800 truncate">Mulus Beraspal</p>
+              <p id="modalRoadDesc" class="text-[10px] text-slate-600 line-clamp-2 mt-0.5 leading-tight">Jalan aspal hotmix mulus dua arah.</p>
+            </div>
+
+            <!-- Kepadatan Lalu Lintas -->
+            <div class="bg-amber-50/80 p-2.5 rounded-2xl border border-amber-100/80">
+              <div class="flex items-center gap-1 text-[11px] font-bold text-amber-700 mb-1">
+                <i data-lucide="gauge" class="w-3.5 h-3.5"></i>
+                <span>Lalu Lintas</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <span id="modalTrafficDot" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <p id="modalTrafficStatus" class="text-xs font-extrabold text-slate-800 truncate">Lancar</p>
+              </div>
+              <p id="modalTrafficSpeed" class="text-[10px] text-slate-500 mt-0.5">Kecepatan: ~45 km/j</p>
+              <p id="modalTrafficNotes" class="text-[10px] text-slate-600 line-clamp-1 mt-0.5">Arus lengang.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tags -->
+        <div id="modalTagsContainer" class="flex flex-wrap gap-1.5 pt-1">
+          <!-- Injected via JS -->
+        </div>
+
+        <!-- Action Button -->
+        <div class="pt-2">
+          <button id="btnModalRoute"
+            class="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-brand-600 to-cyan-500 hover:from-brand-500 hover:to-cyan-400 text-white rounded-2xl font-bold text-sm shadow-xl shadow-brand-500/25 active:scale-98 transition-all">
+            <i data-lucide="navigation-2" class="w-4 h-4 fill-white"></i>
+            <span>Tampilkan Rute Terbaik ke Sini</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MAP PICKER BANNER (MODE ADMIN KLIK PETA) ================= -->
+  <div id="mapPickerBanner" class="hidden fixed top-5 left-1/2 -translate-x-1/2 z-[1500] bg-slate-900/95 text-white px-5 py-3 rounded-2xl shadow-2xl border border-emerald-500/60 flex items-center gap-4 backdrop-blur-md">
+    <div class="flex items-center gap-2.5 text-xs font-bold">
+      <span class="w-3 h-3 rounded-full bg-emerald-400 animate-ping"></span>
+      <span>Mode Penentuan Titik: Klik sembarang lokasi di atas peta untuk mengambil koordinat!</span>
+    </div>
+    <button id="btnCancelMapPicker" type="button" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-bold rounded-xl border border-slate-600 transition-colors">
+      Batal
+    </button>
+  </div>
+
+  <!-- ================= ADMIN: MODAL TAMBAH TITIK LOKASI BARU ================= -->
+  <div id="addLocationModal" class="hidden fixed inset-0 z-[1100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-3xl max-w-2xl w-full overflow-hidden shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-200 my-8">
+      
+      <!-- Modal Header -->
+      <div class="p-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-emerald-50 to-teal-50/50">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-600/30">
+            <i data-lucide="map-pin-plus" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-extrabold text-slate-900">Tambah Titik Wisata Baru</h3>
+            <p class="text-xs text-slate-500">Tambahkan destinasi baru ke dalam peta interaktif</p>
+          </div>
+        </div>
+        <button id="btnCloseAddModal" type="button" class="w-8 h-8 rounded-full bg-slate-200/80 hover:bg-slate-300 text-slate-600 flex items-center justify-center transition-colors">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Form Content -->
+      <form id="addLocationForm" class="p-6 space-y-4 max-h-[75vh] overflow-y-auto custom-scrollbar">
+        
+        <!-- Baris 1: Nama & Wilayah -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Nama Destinasi Wisata <span class="text-rose-500">*</span></label>
+            <input type="text" id="addName" required placeholder="Contoh: Pantai Oetune" 
+              class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:border-brand-500 outline-none transition-all" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Wilayah (Pulau) <span class="text-rose-500">*</span></label>
+            <select id="addRegion" required class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:border-brand-500 outline-none transition-all">
+              <option value="Timor">Daratan Timor</option>
+              <option value="Flores">Flores / Labuan Bajo</option>
+              <option value="Lainnya">Lainnya (NTT)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Baris 2: Kategori & Lokasi Administratif -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Kategori Wisata <span class="text-rose-500">*</span></label>
+            <select id="addCategory" required class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:border-brand-500 outline-none transition-all">
+              <option value="Pantai">Pantai (Pesisir / Laut)</option>
+              <option value="Alam">Alam (Pegunungan / Air Terjun / Gua)</option>
+              <option value="Budaya">Budaya (Desa Adat / Tradisi)</option>
+              <option value="Sejarah">Sejarah (Situs / Cagar Budaya)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Alamat / Lokasi Singkat <span class="text-rose-500">*</span></label>
+            <input type="text" id="addLocation" required placeholder="Contoh: Oebelo, Amanuban Selatan, TTS" 
+              class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:border-brand-500 outline-none transition-all" />
+          </div>
+        </div>
+
+        <!-- Baris 3: Koordinat (Lat, Lng) + Tombol Pilih di Peta -->
+        <div class="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+              <i data-lucide="crosshair" class="w-4 h-4 text-brand-600"></i>
+              <span>Titik Koordinat GPS</span>
+            </span>
+            <button id="btnPickOnMap" type="button" class="flex items-center gap-1.5 px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-[11px] font-bold shadow-sm transition-all active:scale-95">
+              <i data-lucide="map-pin" class="w-3.5 h-3.5"></i>
+              <span>Pilih Titik di Peta</span>
+            </button>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-500 mb-1">Latitude (Lintang)</label>
+              <input type="number" step="any" id="addLat" required placeholder="-9.988200" 
+                class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-mono font-bold focus:border-brand-500 outline-none" />
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-500 mb-1">Longitude (Bujur)</label>
+              <input type="number" step="any" id="addLng" required placeholder="124.646800" 
+                class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-mono font-bold focus:border-brand-500 outline-none" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Baris 4: Foto Gambar -->
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="text-xs font-bold text-slate-700">URL Foto Wisata</label>
+            <button id="btnAutoPhoto" type="button" class="text-[11px] font-bold text-brand-600 hover:underline">
+              Gunakan Foto Otomatis Sesuai Kategori
+            </button>
+          </div>
+          <input type="url" id="addImage" placeholder="https://images.unsplash.com/..." 
+            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:border-brand-500 outline-none transition-all" />
+        </div>
+
+        <!-- Baris 5: HTM, Jam, Rating -->
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Harga Tiket (HTM)</label>
+            <input type="text" id="addTicketPrice" placeholder="Rp 15.000" 
+              class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Jam Buka</label>
+            <input type="text" id="addHours" placeholder="06:00 - 18:00 WITA" 
+              class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Rating Awal</label>
+            <input type="number" step="0.1" min="1" max="5" id="addRating" value="4.8" 
+              class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold outline-none" />
+          </div>
+        </div>
+
+        <!-- Baris 6: Deskripsi & Tags -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Deskripsi Wisata <span class="text-rose-500">*</span></label>
+          <textarea id="addDescription" required rows="2" placeholder="Tuliskan ulasan singkat dan daya tarik utama tempat wisata ini..." 
+            class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:border-brand-500 outline-none"></textarea>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Tagar / Kata Kunci (Pisahkan dengan koma)</label>
+          <input type="text" id="addTags" placeholder="Pasir Putih, Sunset, Spot Foto, Gurun Pasir" 
+            class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium outline-none" />
+        </div>
+
+        <!-- Baris 7: Kondisi Perjalanan (Cuaca, Jalan, Kepadatan) -->
+        <div class="p-3 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-2.5">
+          <span class="text-xs font-bold text-slate-800 block">Kondisi Perjalanan & Cuaca</span>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-500 mb-1">Suhu & Cuaca</label>
+              <input type="text" id="addWeather" value="31°C - Cerah Berawan" 
+                class="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold outline-none" />
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-500 mb-1">Kondisi Jalan</label>
+              <select id="addRoadCondition" class="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold outline-none">
+                <option value="Mulus Beraspal">Mulus Beraspal</option>
+                <option value="Aspal Berkelok">Aspal Berkelok</option>
+                <option value="Sebagian Berbatu">Sebagian Berbatu</option>
+                <option value="Menantang (Pegunungan)">Menantang (Pegunungan)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-500 mb-1">Kepadatan Lalu Lintas</label>
+              <select id="addTraffic" class="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold outline-none">
+                <option value="Lancar">Lancar</option>
+                <option value="Sedang">Sedang (Ramai Lancar)</option>
+                <option value="Padat">Padat</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Form Submit & Cancel -->
+        <div class="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+          <button id="btnCancelAddModal" type="button" class="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors">
+            Batal
+          </button>
+          <button type="submit" class="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold shadow-lg shadow-emerald-600/30 active:scale-95 transition-all">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            <span>Simpan & Tampilkan di Peta</span>
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= ADMIN: MODAL LOGIN PENGELOLA (SUPABASE AUTH) ================= -->
+  <div id="adminAuthModal" class="hidden fixed inset-0 z-[1200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
+      
+      <!-- Modal Header -->
+      <div class="p-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-50 to-brand-50/40">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-brand-600/10 text-brand-600 flex items-center justify-center shadow-xs">
+            <i data-lucide="shield-check" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-extrabold text-slate-800">Panel Pengelola (Admin)</h3>
+            <p class="text-[11px] text-slate-500">Kelola titik destinasi peta publik</p>
+          </div>
+        </div>
+        <button id="btnCloseAdminAuthModal" type="button" class="w-8 h-8 rounded-full bg-slate-200/80 hover:bg-slate-300 text-slate-600 flex items-center justify-center transition-colors">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- State 1: Form Login (Jika Belum Login) -->
+      <div id="adminLoginFormContainer" class="p-6 space-y-4">
+        <div id="supabaseStatusBanner" class="hidden p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
+          <p class="font-bold flex items-center gap-1.5">
+            <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-600"></i>
+            Kredensial Supabase Belum Diatur
+          </p>
+          <p class="text-[11px] mt-1 text-amber-700 leading-relaxed">
+            Data saat ini masih disimpan di <code>localStorage</code> browser. Isi URL & API Key di <code>js/supabase-config.js</code> untuk menyambungkan ke database online publik.
+          </p>
+        </div>
+
+        <p class="text-xs text-slate-600 leading-relaxed">
+          Silakan masuk menggunakan akun Supabase Auth Anda untuk menambah atau menghapus titik wisata. Pengunjung umum hanya memiliki akses melihat peta.
+        </p>
+
+        <form id="adminLoginForm" class="space-y-3.5">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Email Admin</label>
+            <input type="email" id="inputAdminEmail" required placeholder="admin@domain.com"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Password</label>
+            <input type="password" id="inputAdminPassword" required placeholder="••••••••"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all" />
+          </div>
+
+          <div id="adminLoginError" class="hidden p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium"></div>
+
+          <button type="submit" id="btnSubmitAdminLogin"
+            class="w-full py-2.5 px-4 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-lg shadow-brand-500/25 active:scale-95 transition-all flex items-center justify-center gap-2">
+            <i data-lucide="log-in" class="w-4 h-4"></i>
+            <span>Masuk sebagai Admin</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- State 2: Profil Logged In (Jika Sudah Login) -->
+      <div id="adminLoggedInContainer" class="hidden p-6 space-y-4">
+        <div class="flex items-center gap-3 p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl">
+          <div class="w-9 h-9 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-sm">
+            <i data-lucide="check" class="w-4 h-4"></i>
+          </div>
+          <div class="min-w-0 flex-1">
+            <p class="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">Status: Admin Terautentikasi</p>
+            <p id="adminUserEmailDisplay" class="text-xs font-bold text-slate-800 truncate">admin@jelajah.id</p>
+          </div>
+        </div>
+
+        <p class="text-xs text-slate-600 leading-relaxed">
+          Anda memiliki hak akses untuk menambah titik lokasi baru dan menghapus titik wisata dari database publik Supabase.
+        </p>
+
+        <div class="flex items-center gap-2 pt-2">
+          <button id="btnTriggerAddFromAuthModal" type="button"
+            class="flex-1 py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 active:scale-95 transition-all flex items-center justify-center gap-1.5">
+            <i data-lucide="plus-circle" class="w-4 h-4"></i>
+            <span>Tambah Wisata</span>
+          </button>
+          <button id="btnAdminLogout" type="button"
+            class="py-2.5 px-4 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-700 rounded-xl text-xs font-bold border border-slate-200 active:scale-95 transition-all flex items-center justify-center gap-1.5">
+            <i data-lucide="log-out" class="w-4 h-4"></i>
+            <span>Keluar</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ================= TOAST NOTIFICATION CONTAINER ================= -->
+  <div id="toastContainer"
+    class="fixed top-5 left-1/2 -translate-x-1/2 z-[2000] flex flex-col items-center gap-2 pointer-events-none w-full max-w-md px-4">
+    <!-- Toasts will be injected dynamically -->
+  </div>
+
+  <!-- Supabase Config & Client -->
+  <script src="js/supabase-config.js"></script>
+  <!-- Load Data and Main Script -->
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+
+</html>

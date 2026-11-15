@@ -1,0 +1,239 @@
+/* style.css - Custom Modern Styles & Leaflet Overrides */
+
+/* Custom font smoothing */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  overflow: hidden;
+}
+
+/* Custom Scrollbar for Sidebar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.4);
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.7);
+}
+
+/* Glassmorphism helpers */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.12), 0 0 15px 0 rgba(0, 0, 0, 0.04);
+}
+
+.glass-panel-dark {
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.4);
+}
+
+/* User Location Radar Pulse Marker */
+.user-radar-marker {
+  position: relative;
+  width: 24px;
+  height: 24px;
+}
+
+.user-radar-core {
+  width: 16px;
+  height: 16px;
+  background-color: #2563eb;
+  border: 3px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(37, 99, 235, 0.6);
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 2;
+}
+
+.user-radar-wave {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  top: -4px;
+  left: -4px;
+  background-color: rgba(37, 99, 235, 0.35);
+  border-radius: 50%;
+  animation: radar-pulse 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+  z-index: 1;
+}
+
+@keyframes radar-pulse {
+  0% {
+    transform: scale(0.5);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+/* Custom Interactive Tourism Pin */
+.custom-pin {
+  cursor: pointer;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.custom-pin:hover {
+  transform: translateY(-6px) scale(1.1);
+  z-index: 1000 !important;
+}
+
+.pin-bubble {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+  border: 2.5px solid #ffffff;
+  transition: all 0.25s ease;
+}
+
+.pin-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -7px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-top: 8px solid #ffffff;
+}
+
+.pin-active .pin-bubble {
+  transform: scale(1.15);
+  box-shadow: 0 0 0 5px rgba(59, 130, 246, 0.4), 0 12px 30px rgba(0, 0, 0, 0.35);
+}
+
+/* Category Colors for Pins */
+.pin-purple { background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: white; }
+.pin-cyan { background: linear-gradient(135deg, #06b6d4, #0284c7); color: white; }
+.pin-amber { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
+.pin-emerald { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+
+/* Custom Leaflet Popup Overrides */
+.leaflet-popup-content-wrapper {
+  padding: 0 !important;
+  border-radius: 20px !important;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
+}
+
+.leaflet-popup-content {
+  margin: 0 !important;
+  line-height: normal !important;
+  width: 290px !important;
+}
+
+.leaflet-popup-tip-container {
+  display: none !important;
+}
+
+.leaflet-container a.leaflet-popup-close-button {
+  top: 10px !important;
+  right: 10px !important;
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 50% !important;
+  background: rgba(15, 23, 42, 0.6) !important;
+  backdrop-filter: blur(4px) !important;
+  color: #ffffff !important;
+  font-size: 16px !important;
+  line-height: 28px !important;
+  text-align: center !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.2s ease !important;
+  z-index: 20 !important;
+}
+
+.leaflet-container a.leaflet-popup-close-button:hover {
+  background: rgba(15, 23, 42, 0.9) !important;
+  transform: scale(1.1);
+}
+
+/* Hide Default Leaflet Routing Machine Panel (We use our custom HUD Card) */
+.leaflet-routing-container {
+  display: none !important;
+}
+
+/* Smooth Drawer Transition on Mobile */
+.mobile-drawer {
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Floating animation for badge */
+@keyframes float-subtle {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-3px); }
+}
+
+.animate-float {
+  animation: float-subtle 3s ease-in-out infinite;
+}
+
+
+/* Traffic & Road Condition Indicators */
+.traffic-dot-low {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+  display: inline-block;
+}
+
+.traffic-dot-moderate {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #f59e0b;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+  display: inline-block;
+}
+
+.traffic-dot-high {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #ef4444;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+  display: inline-block;
+}
+
+.condition-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
