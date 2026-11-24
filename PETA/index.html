@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+  <title>Peta Wisata Kecamatan Amfoang Selatan - Layout QGIS</title>
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="assets/images/kab kupang.png" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Leaflet.js CSS & JS for high performance image zooming & panning -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#ecfdf5',
+              100: '#d1fae5',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+              800: '#065f46',
+              900: '#064e3b',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom Leaflet Map styling */
+    #map-container {
+      background-color: #0f172a;
+      width: 100%;
+      height: 100%;
+    }
+    .leaflet-container {
+      background: #0f172a !important;
+      outline: none;
+    }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.4);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.7);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col antialiased overflow-hidden select-none">
+
+  <!-- Top Navigation Header -->
+  <header class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 z-30 px-3 py-2.5 sm:px-6 sm:py-3 flex items-center justify-between shadow-lg">
+    <div class="flex items-center gap-3">
+      <!-- Logos -->
+      <div class="flex items-center -space-x-1.5 sm:space-x-2">
+        <img src="assets/images/undana.jpg" alt="Logo Undana" class="w-8 h-8 sm:w-10 sm:h-10 rounded-full border border-slate-700 bg-white object-contain shadow-sm" />
+        <img src="assets/images/kab kupang.png" alt="Logo Kab Kupang" class="w-8 h-8 sm:w-10 sm:h-10 rounded-full border border-slate-700 bg-white/10 p-0.5 object-contain shadow-sm" />
+      </div>
+
+      <!-- Titles -->
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="text-sm sm:text-lg font-bold tracking-tight text-white flex items-center gap-1.5">
+            Peta Wisata Amfoang Selatan
+          </h1>
+          <span class="hidden md:inline-flex items-center px-2 py-0.5 text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-full">
+            QGIS Export HD
+          </span>
+        </div>
+        <p class="text-[11px] sm:text-xs text-slate-400">
+          Kecamatan Amfoang Selatan, Kabupaten Kupang, NTT
+        </p>
+      </div>
+    </div>
+
+    <!-- Actions & Controls -->
+    <div class="flex items-center gap-1.5 sm:gap-2">
+      <!-- Back to Web GIS -->
+      <a href="../index.html" class="px-2.5 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-medium flex items-center gap-1.5 transition-colors" title="Buka Peta Interaktif Web GIS NTT">
+        <i data-lucide="globe" class="w-3.5 h-3.5 text-blue-400"></i>
+        <span class="hidden md:inline">Peta Web GIS</span>
+      </a>
+
+      <!-- View Mode Switcher -->
+      <div class="bg-slate-800/90 p-0.5 rounded-lg border border-slate-700 flex items-center text-xs">
+        <button id="btn-mode-hd" class="px-2.5 py-1.5 rounded-md font-medium text-white bg-emerald-600 shadow-sm flex items-center gap-1.5 transition-all">
+          <i data-lucide="image" class="w-3.5 h-3.5"></i>
+          <span class="hidden sm:inline">Peta HD</span>
+        </button>
+        <button id="btn-mode-pdf" class="px-2.5 py-1.5 rounded-md font-medium text-slate-400 hover:text-slate-200 flex items-center gap-1.5 transition-all">
+          <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+          <span class="hidden sm:inline">Dokumen PDF</span>
+        </button>
+      </div>
+
+      <!-- Destination Info Sidebar Toggle -->
+      <button id="btn-toggle-info" class="p-2 sm:px-3 sm:py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-medium flex items-center gap-1.5 transition-colors" title="Informasi Wisata">
+        <i data-lucide="map-pin" class="w-4 h-4 text-emerald-400"></i>
+        <span class="hidden sm:inline">Destinasi</span>
+      </button>
+
+      <!-- Download Button -->
+      <a href="peta-amfoang-selatan.pdf" download="PETA_AMFOANG_SELATAN_QGIS.pdf" class="p-2 sm:px-3 sm:py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5 shadow-md transition-colors" title="Unduh File PDF">
+        <i data-lucide="download" class="w-4 h-4"></i>
+        <span class="hidden md:inline">Unduh PDF</span>
+      </a>
+
+      <!-- Fullscreen Toggle -->
+      <button id="btn-fullscreen" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition-colors" title="Layar Penuh">
+        <i data-lucide="maximize" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Work Area -->
+  <main class="relative flex-1 w-full h-[calc(100vh-61px)] overflow-hidden">
+    
+    <!-- View 1: Interactive HD Map (Leaflet.js Pan & Zoom) -->
+    <div id="view-hd" class="w-full h-full relative">
+      <div id="map-container"></div>
+
+      <!-- Floating Map Zoom Controls HUD -->
+      <div class="absolute bottom-6 right-6 z-[1000] flex flex-col gap-2">
+        <button id="btn-zoom-in" class="w-10 h-10 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700 text-white flex items-center justify-center shadow-xl backdrop-blur-md transition-all active:scale-95" title="Perbesar (+)">
+          <i data-lucide="plus" class="w-5 h-5"></i>
+        </button>
+        <button id="btn-zoom-out" class="w-10 h-10 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700 text-white flex items-center justify-center shadow-xl backdrop-blur-md transition-all active:scale-95" title="Perkecil (-)">
+          <i data-lucide="minus" class="w-5 h-5"></i>
+        </button>
+        <button id="btn-zoom-reset" class="w-10 h-10 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700 text-emerald-400 flex items-center justify-center shadow-xl backdrop-blur-md transition-all active:scale-95" title="Reset Tampilan (Fit)">
+          <i data-lucide="scan" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Quick Tips Pill on Bottom Left -->
+      <div class="absolute bottom-6 left-6 z-[1000] hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/80 border border-slate-800/80 backdrop-blur-md text-[11px] text-slate-300 shadow-lg pointer-events-none">
+        <i data-lucide="mouse-pointer" class="w-3.5 h-3.5 text-emerald-400"></i>
+        <span>Geser (drag) untuk keliling • Scroll atau cubit untuk zoom</span>
+      </div>
+    </div>
+
+    <!-- View 2: Native PDF Embed (IFrame / Object) -->
+    <div id="view-pdf" class="w-full h-full hidden flex-col bg-slate-900">
+      <div class="bg-slate-800/80 px-4 py-2 text-xs flex items-center justify-between border-b border-slate-700 text-slate-300">
+        <div class="flex items-center gap-2">
+          <i data-lucide="file-text" class="w-4 h-4 text-emerald-400"></i>
+          <span>Menampilkan Dokumen PDF Asli QGIS (27.9 MB)</span>
+        </div>
+        <a href="peta-amfoang-selatan.pdf" target="_blank" class="text-emerald-400 hover:underline flex items-center gap-1 font-medium">
+          <span>Buka di tab baru</span>
+          <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+        </a>
+      </div>
+      <iframe src="peta-amfoang-selatan.pdf#toolbar=1&navpanes=0" class="w-full flex-1 border-0"></iframe>
+    </div>
+
+    <!-- Side Drawer: Destination Info & Photos -->
+    <div id="info-drawer" class="absolute top-0 right-0 h-full w-full sm:w-96 bg-slate-900/95 backdrop-blur-xl border-l border-slate-800 z-[1001] shadow-2xl flex flex-col transition-transform duration-300 translate-x-full">
+      
+      <!-- Drawer Header -->
+      <div class="p-4 border-b border-slate-800 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400">
+            <i data-lucide="compass" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h2 class="text-sm font-bold text-white">Objek & Wisata</h2>
+            <p class="text-[11px] text-slate-400">Amfoang Selatan, Kab. Kupang</p>
+          </div>
+        </div>
+        <button id="btn-close-drawer" class="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Drawer Content (Scrollable) -->
+      <div class="flex-1 overflow-y-auto p-4 space-y-4">
+        
+        <!-- Metadata Box -->
+        <div class="p-3.5 rounded-xl bg-slate-800/60 border border-slate-700/60 space-y-2 text-xs">
+          <div class="font-semibold text-slate-200 flex items-center gap-1.5">
+            <i data-lucide="info" class="w-4 h-4 text-emerald-400"></i>
+            <span>Informasi Kartografi</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2 text-[11px] text-slate-400">
+            <div><span class="block text-slate-500">Skala Peta:</span> 1 : 65.000</div>
+            <div><span class="block text-slate-500">Sistem Grid:</span> Geografis & UTM</div>
+            <div><span class="block text-slate-500">Proyeksi:</span> Transverse Mercator</div>
+            <div><span class="block text-slate-500">Datum:</span> WGS 1984 / UTM 51S</div>
+          </div>
+        </div>
+
+        <!-- Destination Cards with Photos -->
+        <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider">Destinasi Wisata Unggulan</h3>
+
+        <!-- Card 1: Air Belerang -->
+        <div class="group rounded-xl bg-slate-800/50 hover:bg-slate-800/80 border border-slate-700/50 overflow-hidden transition-all shadow-sm">
+          <img src="assets/images/AIR BELERANG.jpg" alt="Air Belerang" class="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-300 cursor-pointer" onclick="openLightbox('assets/images/AIR BELERANG.jpg', 'Air Belerang Amfoang Selatan')" />
+          <div class="p-3">
+            <div class="flex items-center justify-between mb-1">
+              <h4 class="font-bold text-sm text-white">Air Belerang</h4>
+              <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Wisata Alam</span>
+            </div>
+            <p class="text-xs text-slate-400">Mata air belerang alami di Amfoang Selatan dengan keindahan alam sekitarnya serta khasiat air hangat alami.</p>
+          </div>
+        </div>
+
+        <!-- Card 2: Bukit Humon -->
+        <div class="group rounded-xl bg-slate-800/50 hover:bg-slate-800/80 border border-slate-700/50 overflow-hidden transition-all shadow-sm">
+          <img src="assets/images/BUKIT HUMON.jpg" alt="Bukit Humon" class="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-300 cursor-pointer" onclick="openLightbox('assets/images/BUKIT HUMON.jpg', 'Bukit Humon Amfoang Selatan')" />
+          <div class="p-3">
+            <div class="flex items-center justify-between mb-1">
+              <h4 class="font-bold text-sm text-white">Bukit Humon</h4>
+              <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Savana & Bukit</span>
+            </div>
+            <p class="text-xs text-slate-400">Panorama perbukitan savana nan hijau menakjubkan dengan pemandangan terbuka khas dataran tinggi Amfoang.</p>
+          </div>
+        </div>
+
+        <!-- Card 3: Tangga Seribu -->
+        <div class="group rounded-xl bg-slate-800/50 hover:bg-slate-800/80 border border-slate-700/50 overflow-hidden transition-all shadow-sm">
+          <img src="assets/images/TANGGA SERIBU.jpg" alt="Tangga Seribu" class="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-300 cursor-pointer" onclick="openLightbox('assets/images/TANGGA SERIBU.jpg', 'Tangga Seribu Amfoang Selatan')" />
+          <div class="p-3">
+            <div class="flex items-center justify-between mb-1">
+              <h4 class="font-bold text-sm text-white">Tangga Seribu</h4>
+              <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Wisata Panorama</span>
+            </div>
+            <p class="text-xs text-slate-400">Jalur tangga panorama yang menawarkan pemandangan spektakuler perbukitan dan lanskap alam pegunungan.</p>
+          </div>
+        </div>
+
+        <!-- Card 4: Rumah Pohon & Kongkon -->
+        <div class="group rounded-xl bg-slate-800/50 hover:bg-slate-800/80 border border-slate-700/50 overflow-hidden transition-all shadow-sm">
+          <div class="grid grid-cols-2 gap-1">
+            <img src="assets/images/RUMAH POHON.jpg" alt="Rumah Pohon" class="w-full h-28 object-cover cursor-pointer hover:opacity-90" onclick="openLightbox('assets/images/RUMAH POHON.jpg', 'Rumah Pohon Amfoang Selatan')" />
+            <img src="assets/images/KONGKON.jpg" alt="Spot Kongkon" class="w-full h-28 object-cover cursor-pointer hover:opacity-90" onclick="openLightbox('assets/images/KONGKON.jpg', 'Spot Kongkon Amfoang Selatan')" />
+          </div>
+          <div class="p-3">
+            <div class="flex items-center justify-between mb-1">
+              <h4 class="font-bold text-sm text-white">Rumah Pohon & Kongkon</h4>
+              <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Spot Foto</span>
+            </div>
+            <p class="text-xs text-slate-400">Spot gardu pandang alami dengan latar belakang perbukitan hijau yang asri dan sejuk.</p>
+          </div>
+        </div>
+
+        <!-- Other Points of Interest List -->
+        <div class="p-3 rounded-xl bg-slate-800/40 border border-slate-700/40 space-y-2">
+          <h4 class="text-xs font-semibold text-slate-300">Destinasi & Fasilitas Lainnya:</h4>
+          <ul class="text-xs text-slate-400 space-y-1.5 list-disc list-inside">
+            <li><strong class="text-slate-300">Batu Basusun:</strong> Formasi batuan geologi unik tersusun bertingkat</li>
+            <li><strong class="text-slate-300">Kali Besar:</strong> Aliran sungai alami pegunungan Amfoang</li>
+            <li><strong class="text-slate-300">Kantor Pertama di Amfoang:</strong> Lokasi sejarah cagar budaya</li>
+            <li><strong class="text-slate-300">Gunung Merah:</strong> Panorama puncak perbukitan</li>
+            <li><strong class="text-slate-300">Fasilitas Publik:</strong> PAUD Pertiwi, SMKN 2 Amfoang Selatan, Gereja Pniel 2 Lelogama, Gereja Oh'aem</li>
+          </ul>
+        </div>
+
+      </div>
+
+      <!-- Drawer Footer -->
+      <div class="p-3 border-t border-slate-800 text-[11px] text-slate-500 text-center">
+        Peta Hasil Olahan QGIS • Kab. Kupang, NTT
+      </div>
+    </div>
+
+    <!-- Image Lightbox Modal -->
+    <div id="lightbox-modal" class="fixed inset-0 z-[2000] bg-black/90 backdrop-blur-md hidden items-center justify-center p-4">
+      <div class="relative max-w-4xl max-h-[90vh] flex flex-col items-center">
+        <button onclick="closeLightbox()" class="absolute -top-10 right-0 text-white/80 hover:text-white p-2">
+          <i data-lucide="x" class="w-6 h-6"></i>
+        </button>
+        <img id="lightbox-img" src="" alt="Preview" class="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl" />
+        <p id="lightbox-caption" class="text-slate-300 text-sm mt-3 font-medium text-center"></p>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    // Initialize Lucide icons
+    lucide.createIcons();
+
+    // Map Configuration & Setup (Leaflet Simple CRS)
+    // High-res map dimensions: 3576 x 2526 pixels
+    const imgWidth = 3576;
+    const imgHeight = 2526;
+    const bounds = [[0, 0], [imgHeight, imgWidth]];
+
+    const map = L.map('map-container', {
+      crs: L.CRS.Simple,
+      minZoom: -2,
+      maxZoom: 3,
+      zoomSnap: 0.25,
+      zoomDelta: 0.5,
+      attributionControl: false,
+      maxBounds: [[-500, -500], [imgHeight + 500, imgWidth + 500]],
+      maxBoundsViscosity: 0.7
+    });
+
+    // Add High-Resolution Image Overlay
+    const imageOverlay = L.imageOverlay('peta-highres.jpg', bounds).addTo(map);
+
+    // Initial fit view
+    map.fitBounds(bounds);
+
+    // Zoom Controls HUD
+    document.getElementById('btn-zoom-in').addEventListener('click', () => {
+      map.zoomIn();
+    });
+    document.getElementById('btn-zoom-out').addEventListener('click', () => {
+      map.zoomOut();
+    });
+    document.getElementById('btn-zoom-reset').addEventListener('click', () => {
+      map.fitBounds(bounds);
+    });
+
+    // Fullscreen Toggle
+    const btnFullscreen = document.getElementById('btn-fullscreen');
+    btnFullscreen.addEventListener('click', () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => console.log(err));
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
+      }
+    });
+
+    // Switcher: HD Mode vs Native PDF Mode
+    const btnModeHd = document.getElementById('btn-mode-hd');
+    const btnModePdf = document.getElementById('btn-mode-pdf');
+    const viewHd = document.getElementById('view-hd');
+    const viewPdf = document.getElementById('view-pdf');
+
+    btnModeHd.addEventListener('click', () => {
+      viewHd.classList.remove('hidden');
+      viewPdf.classList.add('hidden');
+      viewPdf.classList.remove('flex');
+      
+      btnModeHd.classList.add('bg-emerald-600', 'text-white');
+      btnModeHd.classList.remove('text-slate-400');
+      btnModePdf.classList.remove('bg-emerald-600', 'text-white');
+      btnModePdf.classList.add('text-slate-400');
+
+      map.invalidateSize();
+    });
+
+    btnModePdf.addEventListener('click', () => {
+      viewHd.classList.add('hidden');
+      viewPdf.classList.remove('hidden');
+      viewPdf.classList.add('flex');
+
+      btnModePdf.classList.add('bg-emerald-600', 'text-white');
+      btnModePdf.classList.remove('text-slate-400');
+      btnModeHd.classList.remove('bg-emerald-600', 'text-white');
+      btnModeHd.classList.add('text-slate-400');
+    });
+
+    // Info Drawer Toggle
+    const btnToggleInfo = document.getElementById('btn-toggle-info');
+    const btnCloseDrawer = document.getElementById('btn-close-drawer');
+    const infoDrawer = document.getElementById('info-drawer');
+
+    function toggleDrawer() {
+      infoDrawer.classList.toggle('translate-x-full');
+    }
+
+    btnToggleInfo.addEventListener('click', toggleDrawer);
+    btnCloseDrawer.addEventListener('click', toggleDrawer);
+
+    // Lightbox modal logic
+    const lightboxModal = document.getElementById('lightbox-modal');
+    const lightboxImg = document.getElementById('lightbox-img');
+    const lightboxCaption = document.getElementById('lightbox-caption');
+
+    function openLightbox(src, caption) {
+      lightboxImg.src = src;
+      lightboxCaption.textContent = caption;
+      lightboxModal.classList.remove('hidden');
+      lightboxModal.classList.add('flex');
+    }
+
+    function closeLightbox() {
+      lightboxModal.classList.add('hidden');
+      lightboxModal.classList.remove('flex');
+    }
+
+    lightboxModal.addEventListener('click', (e) => {
+      if (e.target === lightboxModal) {
+        closeLightbox();
+      }
+    });
+
+    // Re-render icons on drawer open
+    lucide.createIcons();
+  </script>
+</body>
+</html>

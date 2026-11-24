@@ -17,3 +17,12 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Large GIS & Archive files (>100MB)
+*.zip
+*.rar
+*.gdb
+*.gdb.rar
+*.gpkg*
+QGIS/
+
+
